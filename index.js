@@ -65,6 +65,7 @@ app.delete('/alunos/:id', async (req, res) => {
     try {
         await pool.query('DELETE FROM matriculas WHERE alunoID = ?', [id]);
         const [result] = await pool.query('DELETE FROM alunos WHERE id = ?', [id]);
+
         if (result.affectedRows > 0) {
             res.json({ message: 'Aluno excluído com sucesso!' });
         } else {
@@ -76,6 +77,40 @@ app.delete('/alunos/:id', async (req, res) => {
     }
 });
 
+app.put('/alunos/:id', async (req, res) => {
+    const { id } = req.params; // Pega o ID da URL
+    // Pega todos os dados do corpo da requisição
+    const { nome, dataNascimento, pai, mae, email, telefone, endereco } = req.body;
+
+    // Validação simples (garante que temos os dados mínimos)
+    if (!nome || !dataNascimento || !mae) {
+        return res.status(400).json({ message: 'Nome, Data de Nascimento e Nome da Mãe são obrigatórios.' });
+    }
+
+    try {
+        const [result] = await pool.query(
+            `UPDATE alunos SET 
+        nome_aluno = ?, 
+        data_nascimento = ?, 
+        nome_pai = ?, 
+        nome_mae = ?, 
+        email = ?, 
+        telefone = ?, 
+        endereco = ?
+      WHERE id = ?`,
+            [nome, dataNascimento, pai, mae, email, telefone, endereco, id]
+        );
+
+        if (result.affectedRows > 0) {
+            res.json({ message: 'Aluno atualizado com sucesso!' });
+        } else {
+            res.status(404).json({ message: 'Aluno não encontrado.' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Erro ao atualizar aluno.' });
+    }
+});
 
 app.get('/turmas', async (req, res) => {
     try {
@@ -108,5 +143,5 @@ app.post('/turmas', async (req, res) => {
 
 
 app.listen(port, () => {
-    console.log(`🚀 Backend rodando na porta ${port}`);
+    console.log(`Backend rodando na porta ${port}`);
 });
