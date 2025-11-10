@@ -109,15 +109,20 @@ app.delete('/alunos/:id', async (req, res) => {
 });
 
 app.put('/alunos/:id', async (req, res) => {
-    const { id } = req.params;
-    const { nome, dataNascimento, pai, mae, email, telefone, endereco } = req.body;
+    const { id } = req.params; // Pega o ID da URL
 
-    if (!nome || !dataNascimento || !mae) {
-        return res.status(400).json({ message: 'Nome, Data de Nascimento e Nome da Mãe são obrigatórios.' });
+    const { nome, dataNascimento, pai, mae, email, telefone, endereco, turmaID } = req.body;
+
+    if (!nome || !dataNascimento || !mae || !turmaID) {
+        return res.status(400).json({ message: 'Todos os campos (incluindo a turma) são obrigatórios.' });
     }
 
+    let connection;
     try {
-        const [result] = await pool.query(
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        await connection.query(
             `UPDATE alunos SET 
         nome_aluno = ?, 
         data_nascimento = ?, 
@@ -130,14 +135,24 @@ app.put('/alunos/:id', async (req, res) => {
             [nome, dataNascimento, pai, mae, email, telefone, endereco, id]
         );
 
-        if (result.affectedRows > 0) {
-            res.json({ message: 'Aluno atualizado com sucesso!' });
-        } else {
-            res.status(404).json({ message: 'Aluno não encontrado.' });
-        }
+        await connection.query(
+            `INSERT INTO matriculas (alunoID, turmaID, data_matricula, matriculado_por)
+       VALUES (?, ?, CURDATE(), 1)
+       ON DUPLICATE KEY UPDATE turmaID = ?`,
+            [id, turmaID, turmaID]
+        );
+
+        await connection.commit();
+
+        res.json({ message: 'Aluno e matrícula atualizados com sucesso!' });
+
     } catch (error) {
+        if (connection) await connection.rollback();
+
         console.error(error);
-        res.status(500).json({ message: 'Erro ao atualizar aluno.' });
+        res.status(500).json({ message: 'Erro ao atualizar o aluno. A operação foi cancelada.' });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
