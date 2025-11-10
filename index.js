@@ -109,7 +109,7 @@ app.delete('/alunos/:id', async (req, res) => {
 });
 
 app.put('/alunos/:id', async (req, res) => {
-    const { id } = req.params; // Pega o ID da URL
+    const { id } = req.params;
 
     const { nome, dataNascimento, pai, mae, email, telefone, endereco, turmaID } = req.body;
 
@@ -203,7 +203,7 @@ app.post('/turmas', async (req, res) => {
                 res.status(404).json({ message: 'Turma não encontrada.' });
             }
         } catch (error) {
-            if (connection) await connection.rollback(); // Desfaz tudo se der erro
+            if (connection) await connection.rollback();
             console.error(error);
             res.status(500).json({ message: 'Erro ao excluir turma.' });
         } finally {
