@@ -44,19 +44,40 @@ app.get('/alunos', async (req, res) => {
 
 
 app.post('/alunos', async (req, res) => {
-    const { nome, dataNascimento, pai, mae, email, telefone, endereco } = req.body;
-    if (!nome || !dataNascimento || !mae) {
-        return res.status(400).json({ message: 'Nome, Data de Nascimento e Nome da Mãe são obrigatórios.' });
+    const { nome, dataNascimento, pai, mae, email, telefone, endereco, turmaID } = req.body;
+
+    if (!nome || !dataNascimento || !mae || !turmaID) {
+        return res.status(400).json({ message: 'Todos os campos (incluindo a turma) são obrigatórios.' });
     }
+
+    let connection;
     try {
-        const [result] = await pool.query(
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        const [resultAluno] = await connection.query(
             'INSERT INTO alunos (nome_aluno, data_nascimento, nome_pai, nome_mae, email, telefone, endereco) VALUES (?, ?, ?, ?, ?, ?, ?)',
             [nome, dataNascimento, pai, mae, email, telefone, endereco]
         );
-        res.status(201).json({ message: 'Aluno cadastrado com sucesso!', id: result.insertId });
+
+        const novoAlunoID = resultAluno.insertId;
+
+        await connection.query(
+            'INSERT INTO matriculas (alunoID, turmaID, data_matricula, matriculado_por) VALUES (?, ?, CURDATE(), 1)',
+            [novoAlunoID, turmaID]
+        );
+
+        await connection.commit();
+
+        res.status(201).json({ message: 'Aluno e matrícula cadastrados com sucesso!', id: novoAlunoID });
+
     } catch (error) {
+        if (connection) await connection.rollback();
+
         console.error(error);
-        res.status(500).json({ message: 'Erro ao cadastrar aluno.' });
+        res.status(500).json({ message: 'Erro ao cadastrar aluno. A operação foi cancelada.' });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
@@ -78,11 +99,9 @@ app.delete('/alunos/:id', async (req, res) => {
 });
 
 app.put('/alunos/:id', async (req, res) => {
-    const { id } = req.params; // Pega o ID da URL
-    // Pega todos os dados do corpo da requisição
+    const { id } = req.params;
     const { nome, dataNascimento, pai, mae, email, telefone, endereco } = req.body;
 
-    // Validação simples (garante que temos os dados mínimos)
     if (!nome || !dataNascimento || !mae) {
         return res.status(400).json({ message: 'Nome, Data de Nascimento e Nome da Mãe são obrigatórios.' });
     }
