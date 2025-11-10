@@ -32,12 +32,22 @@ app.post('/login', async (req, res) => {
     }
 });
 
-
 app.get('/alunos', async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT * FROM alunos ORDER BY nome_aluno');
+        const [rows] = await pool.query(`
+      SELECT 
+        alunos.*, 
+        turmas.nome_turma, 
+        turmas.turno,
+        matriculas.turmaID 
+      FROM alunos
+      LEFT JOIN matriculas ON alunos.id = matriculas.alunoID
+      LEFT JOIN turmas ON matriculas.turmaID = turmas.id
+      ORDER BY alunos.nome_aluno
+    `);
         res.json(rows);
     } catch (error) {
+        console.error(error);
         res.status(500).json({ message: 'Erro ao buscar alunos.' });
     }
 });
