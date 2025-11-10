@@ -183,6 +183,33 @@ app.post('/turmas', async (req, res) => {
         }
         res.status(500).json({ message: 'Erro ao criar turma.' });
     }
+    app.delete('/turmas/:id', async (req, res) => {
+        const { id } = req.params;
+
+        let connection;
+        try {
+            connection = await pool.getConnection();
+            await connection.beginTransaction();
+
+            await connection.query('DELETE FROM matriculas WHERE turmaID = ?', [id]);
+
+            const [result] = await connection.query('DELETE FROM turmas WHERE id = ?', [id]);
+
+            await connection.commit();
+
+            if (result.affectedRows > 0) {
+                res.json({ message: 'Turma e matrículas associadas excluídas com sucesso!' });
+            } else {
+                res.status(404).json({ message: 'Turma não encontrada.' });
+            }
+        } catch (error) {
+            if (connection) await connection.rollback(); // Desfaz tudo se der erro
+            console.error(error);
+            res.status(500).json({ message: 'Erro ao excluir turma.' });
+        } finally {
+            if (connection) connection.release();
+        }
+    });
 });
 
 
